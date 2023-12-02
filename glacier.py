@@ -122,7 +122,8 @@ class Cache(object):
     def __init__(self, key, db_path=None):
         self.key = key
         if db_path is None:
-            db_path = os.path.join(get_user_cache_dir(), 'glacier-cli', 'db')
+            db_path = os.path.join(get_user_cache_dir(),
+                                   'glacier-backup', 'db')
         if db_path != ':memory:':
             mkdir_p(os.path.dirname(db_path))
         self.engine = sqlalchemy.create_engine('sqlite:///%s' % db_path)
@@ -339,7 +340,7 @@ def find_retrieval_jobs(vault, archive_id):
     return [job for job in vault.list_jobs() if job.archive_id == archive_id]
 
 
-def find_inventory_jobs(vault, max_age_hours=0):
+def find_inventory_jobs(connection, vault_name, max_age_hours=0):
     if max_age_hours:
         def recent_enough(job):
             if not job.completed:
@@ -351,7 +352,7 @@ def find_inventory_jobs(vault, max_age_hours=0):
         def recent_enough(job):
             return not job.completed
 
-    return [job for job in vault.list_jobs()
+    return [job for job in connection.list_jobs(vaultName=vault_name)["JobList"]
             if job.action == 'InventoryRetrieval' and recent_enough(job)]
 
 
@@ -448,8 +449,9 @@ class App(object):
         self.cache.mark_commit()
 
     def _vault_sync(self, vault_name, max_age_hours, fix, wait):
-        vault = self.connection.get_vault(vault_name)
-        inventory_jobs = find_inventory_jobs(vault,
+        vault = self.connection.describe_vault(
+            vaultName=vault_name)
+        inventory_jobs = find_inventory_jobs(self.connection, vault_name,
                                              max_age_hours=max_age_hours)
 
         complete_job = find_complete_job(inventory_jobs)
