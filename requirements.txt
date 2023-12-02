@@ -1,0 +1,4 @@
+boto3
+iso8601
+SQLAlchemy
+#SQLAlchemy==1.0.8
